@@ -1,5 +1,6 @@
 ## usage: loomwords.py [-h] --input_template [INPUT_TEMPLATE] --output_file [OUTPUT_FILE]
-##                     [--replacement_file [REPLACEMENT_FILE]] [--theme [THEME]] [--debug]
+##                     [--replacement_file [REPLACEMENT_FILE]] [--theme [THEME]] [--thesaurus_file [THESAURUS_FILE]]
+##                     [--runs [RUNS]] [--debug]
 ## 
 ## Loomwords - a dynamic text generation platform
 ## 
@@ -12,9 +13,11 @@
 ##   --replacement_file [REPLACEMENT_FILE]
 ##                         replacements filename
 ##   --theme [THEME]       theme directory, must match data_[THEME]
+##   --thesaurus_file [THESAURUS_FILE]
+##                         custom thesaurus file
+##   --runs [RUNS]         number of runs to output
 ##   --debug               print debugging output
-
-
+  
 # DON'T EDIT ANYTHING BELOW THIS POINT UNLESS YOU KNOW WHAT YOU'RE DOING!
 
 # TODO:
@@ -25,10 +28,11 @@
 # 8. Any line beginning with // should be removed and ignored.
 # 10. Allow dynamic subtemplate behavior within stickies.
 # 14. Add --debug mode which shows info like all vocabs used, all stickies, etc.
-# 16. Put in GitHub repo with examples and proper .gitignore.
-# 19. Support random integer generation with _1-99, _2-6, etc.
 # 21. Create default data pack for distribution.
 # 22. Allow shorthands like ! for sticky, ++ for incrementer.
+# 26. Add vocab migrator to update all references from one name to another. Track them in main and custom migrator files for distribution.
+# 27. Fix replacement_file to check local path first, theme second, default data last.
+# 28. In debug mode, output <_word> to word.txt for thesaurus debugging.
 
 # Import any libraries you need here.
 import os,sys,random,glob,re,codecs,argparse
@@ -39,11 +43,6 @@ database = {}
 
 # Thesaurus to handle <_word> syntax.
 thesaurus = {}
-
-# Storage for sticky values.
-# Each key has its own dictionary of vocabulary:value.
-stickies = {}
-incrementers = {}
 
 # Storage for templates that don't have values.
 # Show these at the end for information's sake.
@@ -130,7 +129,7 @@ def getRandomFromTaxonomy(taxonomy,database):
 # Recursively process templates.
 def process(text,database,missing,laststicky,thesaurus,thesaurus_lines):
     #print(text)
-    matches = re.findall("(\<\w+\>)",text)
+    matches = re.findall("(\<\S+\>)",text)
     # This gives us an array of matches.
     # We'll then need to reconstruct the sentence with each template replaced.
     # Take the result and process it again.
@@ -157,8 +156,15 @@ def process(text,database,missing,laststicky,thesaurus,thesaurus_lines):
         if taxonomy == "":
             builtin = 1
             word = template.split("_")[1]
-            # Use the thesaurus.
-            if word in thesaurus.keys():
+            # Check if the pattern is [number]-[number]
+            numpattern = re.compile('(\d+)\-(\d+)')
+            nummatches = numpattern.match(word)
+            if nummatches is not None:
+                startnum = nummatches.group(1)
+                endnum = nummatches.group(2)
+                replacement = str(random.randint(int(startnum), int(endnum)))
+            elif word in thesaurus.keys():
+                # Use the thesaurus.
                 index = random.choice(thesaurus[word])
                 entries = thesaurus_lines[index].split(",")
                 replacement = random.choice(entries)
@@ -265,6 +271,7 @@ parser.add_argument('--output_file',nargs='?',help='output filename',required=Tr
 parser.add_argument('--replacement_file',nargs='?',default='',help='replacements filename',required=False)
 parser.add_argument('--theme',nargs='?',default='',help='theme directory, must match data_[THEME]',required=False)
 parser.add_argument('--thesaurus_file',nargs='?',default='thesaurus.txt',help='custom thesaurus file',required=False)
+parser.add_argument('--runs',nargs='?',default='1',help='number of runs to output',required=False)
 parser.add_argument('--debug',action='store_true',help='print debugging output',required=False)
 args = parser.parse_args()
 input_template = args.input_template
@@ -273,6 +280,7 @@ replacement_file = args.replacement_file
 theme = args.theme
 debug = args.debug
 thesaurus_file = args.thesaurus_file
+runs = int(args.runs)
 
 # Load our taxonomies.
 dirs = ['data']
@@ -302,28 +310,43 @@ print("Loaded",len(database.keys()),"taxonomies with",numvocabs,"vocabularies an
 # Grab our starting point.
 print("Determining seed text...")
 # File encoding is the bane of existence.
-try:
-    # Attempt utf-8 first.
-    start = codecs.open(input_template,'r','utf-8').read()
-except:
-    # Might be latin-1 instead. Try that.
+if os.path.exists(input_template):
     try:
-        start = codecs.open(input_template,'r','latin-1').read()
+        # Attempt utf-8 first.
+        start = codecs.open(input_template,'r','utf-8').read()
     except:
-        # To hell with this.
-        print("Unknown encoding in file: " + input_template)
-        print("Quitting...")
-        sys.exit()
+        # Might be latin-1 instead. Try that.
+        try:
+            start = codecs.open(input_template,'r','latin-1').read()
+        except:
+            # To hell with this.
+            print("Unknown encoding in file: " + input_template)
+            print("Quitting...")
+            sys.exit()
+else:
+    print("Input template does not exist:",input_template)
+    print("Quitting...")
+    sys.exit
+
 # Process templates recursively.
 print("Processing templates...")
-output = process(start,database,missing,"TOPLEVEL",thesaurus,thesaurus_lines)
-if replacement_file != "":
-    print("Processing replacements...")
-    output = replacements(replacement_file,output)
-# Display our final output.
+fulloutput = ""
+for r in range(runs):
+    # Storage for sticky values.
+    # Each key has its own dictionary of vocabulary:value.
+    stickies = {}
+    incrementers = {}
+    print("Run #",str(r+1),"...")
+    output = process(start,database,missing,"TOPLEVEL",thesaurus,thesaurus_lines)
+    if replacement_file != "":
+        print("Processing replacements...")
+        output = replacements(replacement_file,output)
+    if fulloutput == "":
+        fulloutput = output
+    else:
+        fulloutput += "\n" + output
 print("Writing output to file...")
-#print(output)
-outputToFile(output_file,output)
+outputToFile(output_file,fulloutput)
 print("Output saved to:",output_file)
 if len(missing.keys()) > 0:
     print("Missing templates:")

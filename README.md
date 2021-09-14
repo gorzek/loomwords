@@ -13,13 +13,16 @@ It only requires a Python 3.x installation with default modules.
 5. There is a built-in thesaurus which will do quasi-intelligent replacements. Just use the syntax: `<_[word]>` such as `<_hot>` or `<_cold>`
 6. Overriding particular vocabulary files is available using a theme system. Create a directory named `data_[theme]` where `[theme]` is the name of your theme, then invoke that theme when running Loomwords. Any vocabularies defined in a theme will override the default vocabularies in the `data` directory.
 7. A replacement file may also be used to do static replacements on the output before it is written to a file, like so: `source text|replacement text`
+8. Template replacements are *recursive*, meaning data files can themselves contain template references. Just be careful not to make them circular!
+9. You can use syntax like `<_1-99>` to insert random integers.
+10. The `--runs` parameter, when followed by an integer, will perform that number of runs and output them to the same file separated by a new line.
 
 ## Usage
 
 ```
 usage: loomwords.py [-h] --input_template [INPUT_TEMPLATE] --output_file [OUTPUT_FILE]
                     [--replacement_file [REPLACEMENT_FILE]] [--theme [THEME]] [--thesaurus_file [THESAURUS_FILE]]
-                    [--debug]
+                    [--runs [RUNS]] [--debug]
 
 Loomwords - a dynamic text generation platform
 
@@ -34,6 +37,7 @@ optional arguments:
   --theme [THEME]       theme directory, must match data_[THEME]
   --thesaurus_file [THESAURUS_FILE]
                         custom thesaurus file
+  --runs [RUNS]         number of runs to output
   --debug               print debugging output
 ```
 
