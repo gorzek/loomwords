@@ -129,7 +129,7 @@ def getRandomFromTaxonomy(taxonomy,database):
 # Recursively process templates.
 def process(text,database,missing,laststicky,thesaurus,thesaurus_lines):
     #print(text)
-    matches = re.findall("(\<\S+\>)",text)
+    matches = re.findall("(\<\S+?\>)",text)
     # This gives us an array of matches.
     # We'll then need to reconstruct the sentence with each template replaced.
     # Take the result and process it again.
