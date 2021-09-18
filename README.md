@@ -14,8 +14,9 @@ It only requires a Python 3.x installation with default modules.
 6. Overriding particular vocabulary files is available using a theme system. Create a directory named `data_[theme]` where `[theme]` is the name of your theme, then invoke that theme when running Loomwords. Any vocabularies defined in a theme will override the default vocabularies in the `data` directory.
 7. A replacement file may also be used to do static replacements on the output before it is written to a file, like so: `source text|replacement text`
 8. Template replacements are *recursive*, meaning data files can themselves contain template references. Just be careful not to make them circular!
-9. You can use syntax like `<_1-99>` to insert random integers.
+9. You can use syntax like `<_1-99>` to insert random integers. `<_word_5-10>` will create a random word 5-10 letters long. `<_name_5-10>` will do the same, but capitalized like a name.
 10. The `--runs` parameter, when followed by an integer, will perform that number of runs and output them to the same file separated by a new line.
+11. You may denote comment lines by starting them with `//`. They will be removed from final output and no blank lines they create will be kept.
 
 ## Usage
 
@@ -88,3 +89,18 @@ Open `output.txt` and you should see something like:
 `This is the lie of Alice Edwards, a word by word stand-up comic prefabricate.`
 
 It's not Shakespeare, but this should give you an idea of what you can do with this system.
+
+## Future Work
+
+There are a number of features and improvements planned for the future, including:
+
+* A migration script for when you realize you've littered a template with 60 instances of `<my_junk>` and want to change it to `<good_stuff>`.
+* Different output formatting options, such as markdown-to-HTML.
+* More intelligent capitalization for sentences.
+* Intelligent handling of articles like a/an.
+* A standard for putting comment lines in templates that will be ignored and stripped out when rendering.
+* Enabling dynamic subtemplate behavior for stickies.
+* Making the `--debug` switch do something useful.
+* Creation of shorthands for various syntax for the power users among you.
+* More intelligent path handling for the replacement file option.
+* A standard data pack and themes to help you get started using Loomwords with community-sourced data.

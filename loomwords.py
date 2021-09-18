@@ -25,14 +25,14 @@
 # 2. Handle capitalizing variables that begin sentences after HTML tags.
 # 3. Remove recursion.
 # 4. Handle a/an automatically.
-# 8. Any line beginning with // should be removed and ignored.
 # 10. Allow dynamic subtemplate behavior within stickies.
 # 14. Add --debug mode which shows info like all vocabs used, all stickies, etc.
 # 21. Create default data pack for distribution.
 # 22. Allow shorthands like ! for sticky, ++ for incrementer.
 # 26. Add vocab migrator to update all references from one name to another. Track them in main and custom migrator files for distribution.
-# 27. Fix replacement_file to check local path first, theme second, default data last.
 # 28. In debug mode, output <_word> to word.txt for thesaurus debugging.
+# 29. Create watcher script which checks for modifications to your input template and automatically templates it to output.
+# 30. Add syntax that hides the output replacement; useful for hidden stickies to set variables.
 
 # Import any libraries you need here.
 import os,sys,random,glob,re,codecs,argparse
@@ -43,6 +43,12 @@ database = {}
 
 # Thesaurus to handle <_word> syntax.
 thesaurus = {}
+
+# Bigram of letters created out of thesaurus data.
+letters = "abcdefghijklmnopqrstuvwxyz"
+bigrams = {}
+for i, letter in enumerate(letters):
+    bigrams[letter] = []
 
 # Storage for templates that don't have values.
 # Show these at the end for information's sake.
@@ -60,7 +66,7 @@ def sentenceCase(text):
              text)
 
 # Load the thesaurus.
-def loadThesaurus(thesaurus_file,thesaurus):
+def loadThesaurus(thesaurus_file,thesaurus,bigrams):
     try:
         thesaurus_lines = open(thesaurus_file,'r').readlines()
         count = 0
@@ -71,6 +77,15 @@ def loadThesaurus(thesaurus_file,thesaurus):
                     thesaurus[e].append(count)
                 else:
                     thesaurus[e] = [count]
+                lastletter = ""
+                for i, letter in enumerate(e):
+                    letter = letter.lower()
+                    if letter not in bigrams.keys():
+                        continue
+                    if lastletter != "":
+                        # Associate this letter with lastletter.
+                        bigrams[lastletter].append(letter)
+                    lastletter = letter
             count += 1
     except:
         print("No thesaurus loaded.")
@@ -112,6 +127,9 @@ def loadTaxonomies(dirs,taxonomies,database):
                         database[t] = {}
                     data = []
                     for l in codecs.decode(open(path,'rb').read()).splitlines():
+                        # Skip comment lines.
+                        if l.strip().startswith("//"):
+                            continue
                         if l != '':
                             data.append(l)
                     # Since we process a chosen theme last, this will supersede defaults when a theme is used.
@@ -127,9 +145,8 @@ def getRandomFromTaxonomy(taxonomy,database):
     return random.choice(database[taxonomy][key])
 
 # Recursively process templates.
-def process(text,database,missing,laststicky,thesaurus,thesaurus_lines):
-    #print(text)
-    matches = re.findall("(\<\S+\>)",text)
+def process(text,database,missing,laststicky,thesaurus,thesaurus_lines,bigrams):
+    matches = re.findall("(\<\S+?\>)",text)
     # This gives us an array of matches.
     # We'll then need to reconstruct the sentence with each template replaced.
     # Take the result and process it again.
@@ -156,22 +173,43 @@ def process(text,database,missing,laststicky,thesaurus,thesaurus_lines):
         if taxonomy == "":
             builtin = 1
             word = template.split("_")[1]
-            # Check if the pattern is [number]-[number]
-            numpattern = re.compile('(\d+)\-(\d+)')
-            nummatches = numpattern.match(word)
-            if nummatches is not None:
-                startnum = nummatches.group(1)
-                endnum = nummatches.group(2)
-                replacement = str(random.randint(int(startnum), int(endnum)))
-            elif word in thesaurus.keys():
-                # Use the thesaurus.
-                index = random.choice(thesaurus[word])
-                entries = thesaurus_lines[index].split(",")
-                replacement = random.choice(entries)
+            # Check if we're randomly generating a name or word.
+            # Need to check for the number pattern as well.
+            # _word or _name alone would be a thesaurus call.
+            if word == "name" or word == "word":
+                rangeword = template.split("_")[2]
+                numpattern = re.compile('(\d+)\-(\d+)')
+                nummatches = numpattern.match(rangeword)
+                if nummatches is not None:
+                    startnum = nummatches.group(1)
+                    endnum = nummatches.group(2)
+                wordlength = random.randint(int(startnum), int(endnum))
+                startletter = random.choice(list(bigrams.keys()))
+                newword = startletter
+                while len(newword) < wordlength:
+                    lastletter = newword[-1]
+                    newletter = random.choice(list(bigrams[lastletter]))
+                    newword += newletter
+                replacement = newword
+                if word == "name":
+                    replacement = replacement.capitalize()
             else:
-                # Track missing thesaurus words.
-                missing_thesaurus[word] = ""
-                replacement = word
+                # Check if the pattern is [number]-[number]
+                numpattern = re.compile('^(\d+)\-(\d+)')
+                nummatches = numpattern.match(word)
+                if nummatches is not None:
+                    startnum = nummatches.group(1)
+                    endnum = nummatches.group(2)
+                    replacement = str(random.randint(int(startnum), int(endnum)))
+                elif word in thesaurus.keys():
+                    # Use the thesaurus.
+                    index = random.choice(thesaurus[word])
+                    entries = thesaurus_lines[index].split(",")
+                    replacement = random.choice(entries)
+                else:
+                    # Track missing thesaurus words.
+                    missing_thesaurus[word] = ""
+                    replacement = word
         try:
             if not builtin:
                 if sticky:
@@ -203,9 +241,9 @@ def process(text,database,missing,laststicky,thesaurus,thesaurus_lines):
                             if stickytemplate not in stickies[stickyref].keys():
                                 # Never encountered before so let's pick one.
                                 replacement = random.choice(database[taxonomy][stickytemplate])
-                                tmpresult = process(replacement,database,missing,stickyref,thesaurus,thesaurus_lines)
+                                tmpresult = process(replacement,database,missing,stickyref,thesaurus,thesaurus_lines,bigrams)
                                 if replacement != tmpresult:
-                                    replacement = process(tmpresult,database,missing,stickyref,thesaurus,thesaurus_lines)
+                                    replacement = process(tmpresult,database,missing,stickyref,thesaurus,thesaurus_lines,bigrams)
                                 stickies[stickyref][stickytemplate] = replacement
                             else:
                                 replacement = stickies[stickyref][stickytemplate]
@@ -224,13 +262,30 @@ def process(text,database,missing,laststicky,thesaurus,thesaurus_lines):
         else:
             result = replacement + m.join(parts[1:])
     if result != text:
-        result = process(result,database,missing,laststicky,thesaurus,thesaurus_lines)
+        result = process(result,database,missing,laststicky,thesaurus,thesaurus_lines,bigrams)
     return result
 
 # Replace target values with replacement values.
-def replacements(replacementfile,text):
-    lines = open(replacementfile,'r').readlines()
+def replacements(replacementfile,text,theme):
+    # Attempt to locate the file in 1 of 3 locations:
+    # Local path first.
+    # Theme path second.
+    # Main data path last.
+    try:
+        lines = open(replacementfile,'r').readlines()
+    except:
+        try:
+            lines = open(os.path.join("data_" + theme, replacementfile),'r').readlines()
+        except:
+            try:
+                lines = open(os.path.join("data", replacementfile),'r').readlines()
+            except:
+                print("Could not find replacement file:",replacementfile)
+                print("Quitting...")
+                sys.exit()
     for l in lines:
+        if l.strip().startswith("//"):
+            continue
         rep = l.strip().split("|")
         target = rep[0]
         replacement = rep[1]
@@ -290,7 +345,7 @@ if theme != '':
     if os.path.isdir(os.path.join(".",testdir)):
         dirs = ['data',testdir]
 print("Loading thesaurus...")
-thesaurus_lines = loadThesaurus(thesaurus_file,thesaurus)
+thesaurus_lines = loadThesaurus(thesaurus_file,thesaurus,bigrams)
 numsynonyms = 0
 for k in thesaurus.keys():
     numsynonyms += len(thesaurus[k])
@@ -320,9 +375,18 @@ if os.path.exists(input_template):
             start = codecs.open(input_template,'r','latin-1').read()
         except:
             # To hell with this.
-            print("Unknown encoding in file: " + input_template)
+            print("Unknown encoding in file:",input_template)
             print("Quitting...")
             sys.exit()
+    # Now strip any comment lines.
+    lines = start.split("\n")
+    newlines = []
+    for l in lines:
+        if l.strip().startswith("//"):
+            continue
+        else:
+            newlines.append(l)
+    start = "\n".join(newlines)
 else:
     print("Input template does not exist:",input_template)
     print("Quitting...")
@@ -337,10 +401,10 @@ for r in range(runs):
     stickies = {}
     incrementers = {}
     print("Run #",str(r+1),"...")
-    output = process(start,database,missing,"TOPLEVEL",thesaurus,thesaurus_lines)
+    output = process(start,database,missing,"TOPLEVEL",thesaurus,thesaurus_lines,bigrams)
     if replacement_file != "":
         print("Processing replacements...")
-        output = replacements(replacement_file,output)
+        output = replacements(replacement_file,output,theme)
     if fulloutput == "":
         fulloutput = output
     else:
