@@ -29,10 +29,19 @@
 # 14. Add --debug mode which shows info like all vocabs used, all stickies, etc.
 # 21. Create default data pack for distribution.
 # 22. Allow shorthands like ! for sticky, ++ for incrementer.
+#       * ! -> sticky_
+#       * !! -> sticky_this_
+#       * ++ -> _incrementer
+#       * <sticky_x_@value> -> <sticky_x_[contents of value]>, equivalent to <sticky_x_<sticky_x_sometax_somevocab>>
+#       Ex: <!!@value>, if "value" is "var_foo" then this is all rendered as <sticky_this_var_foo>
 # 26. Add vocab migrator to update all references from one name to another. Track them in main and custom migrator files for distribution.
 # 28. In debug mode, output <_word> to word.txt for thesaurus debugging.
 # 29. Create watcher script which checks for modifications to your input template and automatically templates it to output.
 # 30. Add syntax that hides the output replacement; useful for hidden stickies to set variables.
+# 32. Allow intelligent shorthand indirection, like <sticky_mc_person_firstname_<nationality>>.
+# 33. Use PySimplyGUI for a simple GUI: https://github.com/PySimpleGUI/PySimpleGUI
+# 34. Autocomplete example for PySimpleGUI: https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Input_Auto_Complete.py
+# 35. New thesaurus based on: https://raw.githubusercontent.com/drichert/moby/develop/share/moby/thesaurus/roget13a.txt
 
 # Import any libraries you need here.
 import os,sys,random,glob,re,codecs,argparse
@@ -146,7 +155,7 @@ def getRandomFromTaxonomy(taxonomy,database):
 
 # Recursively process templates.
 def process(text,database,missing,laststicky,thesaurus,thesaurus_lines,bigrams):
-    matches = re.findall("(\<\S+?\>)",text)
+    matches = re.findall("(?=(\<\S+?\>))",text)
     # This gives us an array of matches.
     # We'll then need to reconstruct the sentence with each template replaced.
     # Take the result and process it again.
@@ -157,6 +166,10 @@ def process(text,database,missing,laststicky,thesaurus,thesaurus_lines,bigrams):
     for m in matches:
         parts = result.split(m)
         preceding = parts[0]
+        if m.count("<") != m.count(">"):
+            # Skip unbalanced matches.
+            result = preceding + m + m.join(parts[1:])
+            continue
         template = m.split("<")[1].split(">")[0]
         sticky = 0
         builtin = 0
@@ -401,7 +414,11 @@ for r in range(runs):
     stickies = {}
     incrementers = {}
     print("Run #",str(r+1),"...")
+    lastoutput = ""
     output = process(start,database,missing,"TOPLEVEL",thesaurus,thesaurus_lines,bigrams)
+    while output != lastoutput:
+        lastoutput = output
+        output = process(output,database,missing,"TOPLEVEL",thesaurus,thesaurus_lines,bigrams)
     if replacement_file != "":
         print("Processing replacements...")
         output = replacements(replacement_file,output,theme)
