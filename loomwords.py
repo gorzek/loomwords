@@ -20,29 +20,6 @@
   
 # DON'T EDIT ANYTHING BELOW THIS POINT UNLESS YOU KNOW WHAT YOU'RE DOING!
 
-# TODO:
-# 1. Output directly to HTML.
-# 2. Handle capitalizing variables that begin sentences after HTML tags.
-# 3. Remove recursion.
-# 4. Handle a/an automatically.
-# 10. Allow dynamic subtemplate behavior within stickies.
-# 14. Add --debug mode which shows info like all vocabs used, all stickies, etc.
-# 21. Create default data pack for distribution.
-# 22. Allow shorthands like ! for sticky, ++ for incrementer.
-#       * ! -> sticky_
-#       * !! -> sticky_this_
-#       * ++ -> _incrementer
-#       * <sticky_x_@value> -> <sticky_x_[contents of value]>, equivalent to <sticky_x_<sticky_x_sometax_somevocab>>
-#       Ex: <!!@value>, if "value" is "var_foo" then this is all rendered as <sticky_this_var_foo>
-# 26. Add vocab migrator to update all references from one name to another. Track them in main and custom migrator files for distribution.
-# 28. In debug mode, output <_word> to word.txt for thesaurus debugging.
-# 29. Create watcher script which checks for modifications to your input template and automatically templates it to output.
-# 30. Add syntax that hides the output replacement; useful for hidden stickies to set variables.
-# 32. Allow intelligent shorthand indirection, like <sticky_mc_person_firstname_<nationality>>.
-# 33. Use PySimplyGUI for a simple GUI: https://github.com/PySimpleGUI/PySimpleGUI
-# 34. Autocomplete example for PySimpleGUI: https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Input_Auto_Complete.py
-# 35. New thesaurus based on: https://raw.githubusercontent.com/drichert/moby/develop/share/moby/thesaurus/roget13a.txt
-
 # Import any libraries you need here.
 import os,sys,random,glob,re,codecs,argparse
 
