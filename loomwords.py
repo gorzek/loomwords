@@ -114,7 +114,12 @@ def getTaxonomies(dirs):
                 if taxonomy not in taxonomies:
                     taxonomies.append(taxonomy)
     return taxonomies
-    
+
+def processShorthand(text):
+    text = text.replace("<!!","<sticky_this_")
+    text = text.replace("<!","<sticky_")
+    text = text.replace("++>","_incrementer>")
+    return text
 
 # Load all the taxonomies.
 def loadTaxonomies(dirs,taxonomies,database):
@@ -140,6 +145,7 @@ def loadTaxonomies(dirs,taxonomies,database):
                         if l.strip().startswith("//"):
                             continue
                         if l != '':
+                            l = processShorthand(l)
                             data.append(l)
                     # Since we process a chosen theme last, this will supersede defaults when a theme is used.
                     database[t][taxname] = data
@@ -155,6 +161,7 @@ def getRandomFromTaxonomy(taxonomy,database):
 
 # Recursively process templates.
 def process(text,database,missing,laststicky,thesaurus,thesaurus_lines,bigrams):
+    text = processShorthand(text)
     matches = re.findall("(?=(\<\S+?\>))",text)
     # This gives us an array of matches.
     # We'll then need to reconstruct the sentence with each template replaced.
@@ -218,7 +225,7 @@ def process(text,database,missing,laststicky,thesaurus,thesaurus_lines,bigrams):
                     # Use the thesaurus.
                     index = random.choice(thesaurus[word])
                     entries = thesaurus_lines[index].split(",")
-                    replacement = random.choice(entries)
+                    replacement = random.choice(entries).strip()
                 else:
                     # Track missing thesaurus words.
                     missing_thesaurus[word] = ""
