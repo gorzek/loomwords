@@ -18,6 +18,7 @@ It only requires a Python 3.x installation with default modules.
 10. The `--runs` parameter, when followed by an integer, will perform that number of runs and output them to the same file separated by a new line.
 11. You may denote comment lines by starting them with `//`. They will be removed from final output and no blank lines they create will be kept.
 12. You may even use one template's value to call another. This would be useful for a pronoun system, for instance: `<sticky_mc_pronoun_<sticky_mc_person_gender>>`. So, if the value pulled from `person_gender.txt` is `male` then the template is interpreted as `<sticky_mc_pronoun_male>`.
+13. Shorthands for some templates are available! Use `!` to replace `sticky_`, `!!` to replace `sticky_this_` and `++` to replace `_incrementer`.
 
 ## Usage
 
