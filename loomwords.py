@@ -410,6 +410,20 @@ for r in range(runs):
         fulloutput = output
     else:
         fulloutput += "\n" + output
+        
+print("Applying language cleanup options...")
+fulloutput = fulloutput.replace("s's","s'")
+fulloutput = fulloutput.replace(" the the "," the ")
+fulloutput = re.sub(r"(\A\w)|"+                  # start of string
+             "(\A\"\w)|"+                 # start of string after double quote
+             "\s\"(\w)|"+                 # anywhere else after a space and double quote
+             "(?<!\.\w)([\.?!][\"] )\w|"+ # after a ?/!/. and a space (and possibly a double quote),
+                                          # but not after an acronym
+             "\w(?:\.\w)|"+               # start/middle of acronym
+             "(?<=\w\.)\w",               # end of acronym
+             lambda x: x.group().upper(), 
+             fulloutput)
+
 print("Writing output to file...")
 outputToFile(output_file,fulloutput)
 print("Output saved to:",output_file)
